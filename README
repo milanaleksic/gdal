@@ -28,3 +28,10 @@ Status (4/17/2015)
 
 The majority of GDAL functionality exposed by the C API is available, as well as much of the OGR API.
 Most functionality is not yet covered by tests or benchmarks.
+
+-------------
+Status (27/02/2019) - @milanaleksic
+-------------
+
+Included fixes needed to cross-compile on Linux for Windows without any additional dependencies.
+Libraries used http://download.gisinternals.com/sdk/downloads/release-1600-gdal-2-2-3-mapserver-7-0-7-libs.zip:

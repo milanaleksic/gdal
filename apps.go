@@ -7,8 +7,8 @@ package gdal
 
 #cgo linux  pkg-config: gdal
 #cgo darwin pkg-config: gdal
-#cgo windows LDFLAGS: -Lc:/gdal/release-1600-x64/lib -lgdal_i
-#cgo windows CFLAGS: -IC:/gdal/release-1600-x64/include
+#cgo windows LDFLAGS: -L${SRCDIR}/win32/lib -lgdal_i
+#cgo windows CFLAGS: -I${SRCDIR}/win32/include
 */
 import "C"
 import (
