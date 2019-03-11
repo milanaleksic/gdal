@@ -976,13 +976,14 @@ func (fd FeatureDefinition) ReferenceCount() int {
 /* -------------------------------------------------------------------- */
 
 type Feature struct {
-	cval C.OGRFeatureH
+	cval  C.OGRFeatureH
+	layer *Layer
 }
 
 // Create a feature from this feature definition
 func (fd FeatureDefinition) Create() Feature {
 	feature := C.OGR_F_Create(fd.cval)
-	return Feature{feature}
+	return Feature{feature, nil}
 }
 
 // Destroy this feature
@@ -1021,7 +1022,7 @@ func (feature Feature) StealGeometry() Geometry {
 // Duplicate feature
 func (feature Feature) Clone() Feature {
 	newFeature := C.OGR_F_Clone(feature.cval)
-	return Feature{newFeature}
+	return Feature{newFeature, feature.layer}
 }
 
 // Test if two features are the same
@@ -1044,9 +1045,17 @@ func (feature Feature) FieldDefinition(index int) FieldDefinition {
 
 // Fetch the field index for the given field name
 func (feature Feature) FieldIndex(name string) int {
+	if feature.layer != nil {
+		if index, ok := feature.layer.index[name]; ok {
+			return index
+		}
+	}
 	cName := C.CString(name)
 	defer C.free(unsafe.Pointer(cName))
 	index := C.OGR_F_GetFieldIndex(feature.cval, cName)
+	if feature.layer != nil {
+		feature.layer.index[name] = int(index)
+	}
 	return int(index)
 }
 
@@ -1067,10 +1076,18 @@ func (feature Feature) RawField(index int) Field {
 	return Field{field}
 }
 
+func (feature Feature) FieldAsIntegerViaName(fieldName string) int {
+	return feature.FieldAsInteger(feature.FieldIndex(fieldName))
+}
+
 // Fetch field value as integer
 func (feature Feature) FieldAsInteger(index int) int {
 	val := C.OGR_F_GetFieldAsInteger(feature.cval, C.int(index))
 	return int(val)
+}
+
+func (feature Feature) FieldAsFloat64ViaName(fieldName string) float64 {
+	return feature.FieldAsFloat64(feature.FieldIndex(fieldName))
 }
 
 // Fetch field value as float64
@@ -1079,10 +1096,18 @@ func (feature Feature) FieldAsFloat64(index int) float64 {
 	return float64(val)
 }
 
+func (feature Feature) FieldAsStringViaName(fieldName string) string {
+	return feature.FieldAsString(feature.FieldIndex(fieldName))
+}
+
 // Fetch field value as string
 func (feature Feature) FieldAsString(index int) string {
 	val := C.OGR_F_GetFieldAsString(feature.cval, C.int(index))
 	return C.GoString(val)
+}
+
+func (feature Feature) FieldAsIntegerListViaName(fieldName string) []int {
+	return feature.FieldAsIntegerList(feature.FieldIndex(fieldName))
 }
 
 // Fetch field as list of integers
@@ -1097,6 +1122,10 @@ func (feature Feature) FieldAsIntegerList(index int) []int {
 	return goSlice
 }
 
+func (feature Feature) FieldAsFloat64ListViaName(fieldName string) []float64 {
+	return feature.FieldAsFloat64List(feature.FieldIndex(fieldName))
+}
+
 // Fetch field as list of float64
 func (feature Feature) FieldAsFloat64List(index int) []float64 {
 	var count int
@@ -1107,6 +1136,10 @@ func (feature Feature) FieldAsFloat64List(index int) []float64 {
 	header.Len = count
 	header.Data = uintptr(unsafe.Pointer(cArray))
 	return goSlice
+}
+
+func (feature Feature) FieldAsStringListViaName(fieldName string) []string {
+	return feature.FieldAsStringList(feature.FieldIndex(fieldName))
 }
 
 // Fetch field as list of strings
@@ -1127,6 +1160,10 @@ func (feature Feature) FieldAsStringList(index int) []string {
 	return strings
 }
 
+func (feature Feature) FieldAsBinaryViaName(fieldName string) []uint8 {
+	return feature.FieldAsBinary(feature.FieldIndex(fieldName))
+}
+
 // Fetch field as binary data
 func (feature Feature) FieldAsBinary(index int) []uint8 {
 	var count int
@@ -1137,6 +1174,10 @@ func (feature Feature) FieldAsBinary(index int) []uint8 {
 	header.Len = count
 	header.Data = uintptr(unsafe.Pointer(cArray))
 	return goSlice
+}
+
+func (feature Feature) FieldAsDateTimeViaName(fieldName string) (time.Time, bool) {
+	return feature.FieldAsDateTime(feature.FieldIndex(fieldName))
 }
 
 // Fetch field as date and time
@@ -1286,7 +1327,8 @@ func (feature Feature) SetStyleString(style string) {
 /* -------------------------------------------------------------------- */
 
 type Layer struct {
-	cval C.OGRLayerH
+	cval  C.OGRLayerH
+	index map[string]int
 }
 
 // Return the layer name
@@ -1335,7 +1377,7 @@ func (layer Layer) ResetReading() {
 // Fetch the next available feature from this layer
 func (layer Layer) NextFeature() Feature {
 	feature := C.OGR_L_GetNextFeature(layer.cval)
-	return Feature{feature}
+	return Feature{feature, &layer}
 }
 
 // Move read cursor to the provided index
@@ -1346,7 +1388,7 @@ func (layer Layer) SetNextByIndex(index int) error {
 // Fetch a feature by its index
 func (layer Layer) Feature(index int) Feature {
 	feature := C.OGR_L_GetFeature(layer.cval, C.GIntBig(index))
-	return Feature{feature}
+	return Feature{feature, &layer}
 }
 
 // Rewrite the provided feature
@@ -1555,7 +1597,7 @@ func (ds DataSource) LayerCount() int {
 // Fetch a layer of this data source by index
 func (ds DataSource) LayerByIndex(index int) Layer {
 	layer := C.OGR_DS_GetLayer(ds.cval, C.int(index))
-	return Layer{layer}
+	return Layer{layer, make(map[string]int)}
 }
 
 // Fetch a layer of this data source by name
@@ -1563,7 +1605,7 @@ func (ds DataSource) LayerByName(name string) Layer {
 	cString := C.CString(name)
 	defer C.free(unsafe.Pointer(cString))
 	layer := C.OGR_DS_GetLayerByName(ds.cval, cString)
-	return Layer{layer}
+	return Layer{layer, make(map[string]int)}
 }
 
 // Delete the layer from the data source
@@ -1602,7 +1644,7 @@ func (ds DataSource) CreateLayer(
 		C.OGRwkbGeometryType(geomType),
 		(**C.char)(unsafe.Pointer(&opts[0])),
 	)
-	return Layer{layer}
+	return Layer{layer, make(map[string]int)}
 }
 
 // Duplicate an existing layer
@@ -1628,7 +1670,7 @@ func (ds DataSource) CopyLayer(
 		cName,
 		(**C.char)(unsafe.Pointer(&opts[0])),
 	)
-	return Layer{layer}
+	return Layer{layer, make(map[string]int)}
 }
 
 // Test if the data source has the indicated capability
@@ -1647,7 +1689,7 @@ func (ds DataSource) ExecuteSQL(sql string, filter Geometry, dialect string) Lay
 	defer C.free(unsafe.Pointer(cDialect))
 
 	layer := C.OGR_DS_ExecuteSQL(ds.cval, cSQL, filter.cval, cDialect)
-	return Layer{layer}
+	return Layer{layer, make(map[string]int)}
 }
 
 // Release the results of ExecuteSQL
