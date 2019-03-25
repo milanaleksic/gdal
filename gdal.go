@@ -1727,3 +1727,11 @@ func FlushCacheBlock() bool {
 	flushed := C.GDALFlushCacheBlock()
 	return flushed != 0
 }
+
+func SetConfigOption(key, value string) {
+	cName := C.CString(key)
+	defer C.free(unsafe.Pointer(cName))
+	cValue := C.CString(value)
+	defer C.free(unsafe.Pointer(cValue))
+	C.CPLSetConfigOption(cName, cValue)
+}
