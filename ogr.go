@@ -859,6 +859,73 @@ func (ft FieldType) Name() string {
 }
 
 /* -------------------------------------------------------------------- */
+/*      Geometry field definition functions                             */
+/* -------------------------------------------------------------------- */
+
+type GeometryFieldDefinition struct {
+	cval C.OGRGeomFieldDefnH
+}
+
+// Create a new field definition
+func CreateGeometryFieldDefinition(name string, fieldType GeometryType) GeometryFieldDefinition {
+	cName := C.CString(name)
+	defer C.free(unsafe.Pointer(cName))
+	fieldDef := C.OGR_GFld_Create(cName, C.OGRwkbGeometryType(fieldType))
+	return GeometryFieldDefinition{fieldDef}
+}
+
+// Destroy the field definition
+func (fd GeometryFieldDefinition) Destroy() {
+	C.OGR_GFld_Destroy(fd.cval)
+}
+
+// Fetch the name of the field
+func (fd GeometryFieldDefinition) Name() string {
+	name := C.OGR_GFld_GetNameRef(fd.cval)
+	return C.GoString(name)
+}
+
+// Set the name of the field
+func (fd GeometryFieldDefinition) SetName(name string) {
+	cName := C.CString(name)
+	defer C.free(unsafe.Pointer(cName))
+	C.OGR_GFld_SetName(fd.cval, cName)
+}
+
+// Fetch the type of this field
+func (fd GeometryFieldDefinition) Type() GeometryType {
+	fType := C.OGR_GFld_GetType(fd.cval)
+	return GeometryType(fType)
+}
+
+// Set the type of this field
+func (fd GeometryFieldDefinition) SetType(fType GeometryType) {
+	C.OGR_GFld_SetType(fd.cval, C.OGRwkbGeometryType(fType))
+}
+
+// Assign a spatial reference to this geometry
+func (fd GeometryFieldDefinition) SetSpatialReference(spatialRef SpatialReference) {
+	C.OGR_GFld_SetSpatialRef(fd.cval, spatialRef.cval)
+}
+
+// Fetch the spatial reference associated with this geometry
+func (fd GeometryFieldDefinition) SpatialReference() SpatialReference {
+	spatialRef := C.OGR_GFld_GetSpatialRef(fd.cval)
+	return SpatialReference{spatialRef}
+}
+
+// Fetch whether this field should be ignored when fetching features
+func (fd GeometryFieldDefinition) IsIgnored() bool {
+	ignore := C.OGR_GFld_IsIgnored(fd.cval)
+	return ignore != 0
+}
+
+// Set whether this field should be ignored when fetching features
+func (fd GeometryFieldDefinition) SetIgnored(ignore bool) {
+	C.OGR_GFld_SetIgnored(fd.cval, BoolToCInt(ignore))
+}
+
+/* -------------------------------------------------------------------- */
 /*      Feature definition functions                                    */
 /* -------------------------------------------------------------------- */
 
@@ -913,6 +980,11 @@ func (fd FeatureDefinition) FieldIndex(name string) int {
 // Add a new field definition to this feature definition
 func (fd FeatureDefinition) AddFieldDefinition(fieldDefn FieldDefinition) {
 	C.OGR_FD_AddFieldDefn(fd.cval, fieldDefn.cval)
+}
+
+// Add a new field definition to this feature definition
+func (fd FeatureDefinition) AddGeometryFieldDefinition(fieldDefn GeometryFieldDefinition) {
+	C.OGR_FD_AddGeomFieldDefn(fd.cval, fieldDefn.cval)
 }
 
 // Delete a field definition from this feature definition
