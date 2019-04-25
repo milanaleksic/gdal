@@ -963,10 +963,22 @@ func (fd FeatureDefinition) FieldCount() int {
 	return int(count)
 }
 
+// Fetch the number of geometry fields in the feature definition
+func (fd FeatureDefinition) GeometryFieldCount() int {
+	count := C.OGR_FD_GetGeomFieldCount(fd.cval)
+	return int(count)
+}
+
 // Fetch the definition of the indicated field
 func (fd FeatureDefinition) FieldDefinition(index int) FieldDefinition {
 	fieldDefn := C.OGR_FD_GetFieldDefn(fd.cval, C.int(index))
 	return FieldDefinition{fieldDefn}
+}
+
+// Fetch the definition of the indicated geometry field
+func (fd FeatureDefinition) GeometryFieldDefinition(index int) GeometryFieldDefinition {
+	fieldDefn := C.OGR_FD_GetGeomFieldDefn(fd.cval, C.int(index))
+	return GeometryFieldDefinition{fieldDefn}
 }
 
 // Fetch the index of the named field
@@ -990,6 +1002,11 @@ func (fd FeatureDefinition) AddGeometryFieldDefinition(fieldDefn GeometryFieldDe
 // Delete a field definition from this feature definition
 func (fd FeatureDefinition) DeleteFieldDefinition(index int) error {
 	return C.OGR_FD_DeleteFieldDefn(fd.cval, C.int(index)).Err()
+}
+
+// Delete a geometry field definition from this feature definition
+func (fd FeatureDefinition) DeleteGeometryFieldDefinition(index int) error {
+	return C.OGR_FD_DeleteGeomFieldDefn(fd.cval, C.int(index)).Err()
 }
 
 // Fetch the geometry base type of this feature definition
